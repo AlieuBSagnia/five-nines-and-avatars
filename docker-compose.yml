@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  localstack:
+    image: localstack/localstack:3.7
+    container_name: prima-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,s3,iam,sts
+      - DEBUG=0
+      - DEFAULT_REGION=us-east-1
+      - PERSISTENCE=0
+    volumes:
+      - "./terraform:/terraform:ro"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  terraform-init:
+    image: hashicorp/terraform:1.9
+    container_name: prima-terraform-init
+    depends_on:
+      localstack:
+        condition: service_healthy
+    working_dir: /terraform
+    volumes:
+      - "./terraform:/terraform"
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "terraform init -input=false &&
+       terraform apply -auto-approve -input=false"
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - TF_VAR_localstack_endpoint=http://localstack:4566
+
+  api:
+    build: .
+    container_name: prima-api
+    depends_on:
+      localstack:
+        condition: service_healthy
+      terraform-init:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_REGION=us-east-1
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - DYNAMODB_TABLE_NAME=prima-tech-challenge-users
+      - S3_BUCKET_NAME=prima-tech-challenge
+      # LocalStack's S3 URLs are path-style under the gateway port; override
+      # the "real AWS" URL format the app builds by default.
+      - S3_PUBLIC_BASE_URL=http://localhost:4566/prima-tech-challenge
