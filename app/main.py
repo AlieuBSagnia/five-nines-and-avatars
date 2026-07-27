@@ -10,9 +10,11 @@ Plus two operational endpoints used by Kubernetes probes:
   GET /readyz  -> readiness (can it actually serve traffic, i.e. reach deps)
 """
 import logging
+from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
+
 from app import db, storage
 from app.config import settings
 from app.models import UserOut
@@ -62,9 +64,15 @@ def get_users():
 async def create_user(
     name: str = Form(..., min_length=1, max_length=100),
     email: str = Form(...),
-    avatar: UploadFile = File(...),
+    avatar: Annotated[UploadFile | None, File(description="Avatar image to upload")],
 ):
     """Create a new user, uploading the provided image as their avatar."""
+    if avatar is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Avatar file is required",
+        )
+
     # Validate email format explicitly (Form() doesn't run Pydantic's EmailStr
     # validation for us, since these are plain multipart form fields).
     from email.utils import parseaddr

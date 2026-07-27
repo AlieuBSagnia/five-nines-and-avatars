@@ -20,7 +20,9 @@ class Settings:
 
     # S3
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "prima-tech-challenge")
-    S3_PUBLIC_BASE_URL: str | None = os.getenv("S3_PUBLIC_BASE_URL")  # override for path-style/localstack URLs
+    S3_PUBLIC_BASE_URL: str | None = os.getenv(
+        "S3_PUBLIC_BASE_URL"
+    )  # override for path-style/localstack URLs
 
     # App
     MAX_AVATAR_SIZE_BYTES: int = int(os.getenv("MAX_AVATAR_SIZE_BYTES", str(5 * 1024 * 1024)))  # 5MB

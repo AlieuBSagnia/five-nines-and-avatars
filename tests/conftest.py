@@ -35,6 +35,7 @@ def mocked_aws(aws_credentials):
 @pytest.fixture
 def client(mocked_aws):
     from fastapi.testclient import TestClient
+
     from app.main import app
 
     return TestClient(app)
