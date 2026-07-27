@@ -24,10 +24,15 @@ data "aws_iam_policy_document" "app_permissions" {
       "s3:PutObject",
       "s3:GetObject",
     ]
-    # tfsec:ignore:aws-iam-no-policy-wildcards -- Object-level S3 access requires a key pattern and is scoped to the avatars prefix only.
+    # tfsec:ignore:aws-iam-no-policy-wildcards -- Object-level S3 access must be scoped to the avatars prefix; the wildcard is limited to avatars/* only.
     resources = [
       "${aws_s3_bucket.avatars.arn}/avatars/*",
     ]
+    condition {
+      test     = "StringLike"
+      variable = "s3:objectkey"
+      values   = ["avatars/*"]
+    }
   }
 
   statement {
