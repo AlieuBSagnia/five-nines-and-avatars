@@ -29,6 +29,12 @@ app = FastAPI(
 )
 
 
+@app.get("/", tags=["ops"])
+def root():
+    """Root endpoint for a basic readiness/liveness landing page."""
+    return {"status": "ok", "message": "Prima Tech Challenge API is running."}
+
+
 @app.get("/healthz", tags=["ops"])
 def healthz():
     """Liveness probe: process is up and able to respond. Deliberately does
@@ -69,7 +75,7 @@ async def create_user(
     """Create a new user, uploading the provided image as their avatar."""
     if avatar is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Avatar file is required",
         )
 
@@ -77,7 +83,7 @@ async def create_user(
     # validation for us, since these are plain multipart form fields).
     from email.utils import parseaddr
     if "@" not in email or parseaddr(email)[1] != email:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid email address")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid email address")
 
     if avatar.content_type not in settings.ALLOWED_AVATAR_CONTENT_TYPES:
         raise HTTPException(
@@ -91,7 +97,7 @@ async def create_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Avatar file is empty")
     if len(file_bytes) > settings.MAX_AVATAR_SIZE_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"Avatar exceeds max size of {settings.MAX_AVATAR_SIZE_BYTES} bytes",
         )
 
