@@ -77,15 +77,23 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Push image
         if: github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/${{ toLower(github.repository) }}:${{ github.sha }}
-            ghcr.io/${{ toLower(github.repository) }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   validate-terraform:
     name: Validate & scan Terraform
