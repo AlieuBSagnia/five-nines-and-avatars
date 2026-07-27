@@ -38,4 +38,4 @@ def client(mocked_aws):
 
     from app.main import app
 
-    return TestClient(app)
+    return TestClient(app, raise_server_exceptions=False)

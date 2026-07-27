@@ -99,3 +99,89 @@ def test_healthz(client):
 def test_readyz_ok_when_db_reachable(client):
     resp = client.get("/readyz")
     assert resp.status_code == 200
+
+
+def test_missing_avatar_rejected(client):
+    resp = client.post(
+        "/user",
+        data={"name": "Test User", "email": "missing-avatar@prima.it"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "Avatar file is required"
+
+
+def test_large_avatar_rejected(client):
+    resp = client.post(
+        "/user",
+        data={"name": "Test User", "email": "large-avatar@prima.it"},
+        files={"avatar": ("avatar.png", io.BytesIO(b"x" * 6_000_000), "image/png")},
+    )
+    assert resp.status_code == 413
+
+
+def test_get_users_returns_503_when_db_unavailable(client, monkeypatch):
+    import app.main as main_module
+
+    def raise_db_error():
+        raise main_module.db.DatabaseError("Database is currently unreachable")
+
+    monkeypatch.setattr(main_module.db, "list_users", raise_db_error)
+
+    resp = client.get("/users")
+    assert resp.status_code == 503
+
+
+def test_readyz_returns_503_when_db_unavailable(client, monkeypatch):
+    import app.main as main_module
+
+    def raise_db_error():
+        raise main_module.db.DatabaseError("Database is currently unreachable")
+
+    monkeypatch.setattr(main_module.db, "list_users", raise_db_error)
+
+    resp = client.get("/readyz")
+    assert resp.status_code == 503
+
+
+def test_create_user_returns_503_when_storage_fails(client, monkeypatch):
+    import app.main as main_module
+
+    def raise_storage_error(*args, **kwargs):
+        raise main_module.storage.StorageError("Object storage is currently unreachable")
+
+    monkeypatch.setattr(main_module.storage, "upload_avatar", raise_storage_error)
+
+    resp = client.post(
+        "/user",
+        data={"name": "Test User", "email": "storage-error@prima.it"},
+        files={"avatar": ("avatar.png", io.BytesIO(_png_bytes()), "image/png")},
+    )
+    assert resp.status_code == 503
+
+
+def test_create_user_returns_503_when_db_write_fails(client, monkeypatch):
+    import app.main as main_module
+
+    def raise_db_error(*args, **kwargs):
+        raise main_module.db.DatabaseError("Failed to save user to the database")
+
+    monkeypatch.setattr(main_module.db, "create_user", raise_db_error)
+
+    resp = client.post(
+        "/user",
+        data={"name": "Test User", "email": "db-write-error@prima.it"},
+        files={"avatar": ("avatar.png", io.BytesIO(_png_bytes()), "image/png")},
+    )
+    assert resp.status_code == 503
+
+
+def test_unhandled_errors_return_500(client, monkeypatch):
+    import app.main as main_module
+
+    def raise_runtime_error():
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(main_module.db, "list_users", raise_runtime_error)
+
+    resp = client.get("/users")
+    assert resp.status_code == 500
