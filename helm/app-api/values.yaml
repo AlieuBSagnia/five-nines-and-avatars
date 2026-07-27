@@ -1,0 +1,102 @@
+replicaCount: 2
+
+image:
+  repository: prima-tech-challenge/api
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: prima-api
+  # Fill in with the irsa_role_arn Terraform output once an EKS OIDC
+  # provider exists. Leave empty for local/minikube testing.
+  eksRoleArn: ""
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  host: prima-api.example.com
+  annotations: {}
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+  startup:
+    path: /healthz
+    failureThreshold: 30
+    periodSeconds: 2
+
+# Non-secret app configuration -> rendered into a ConfigMap.
+config:
+  awsRegion: "us-east-1"
+  awsEndpointUrl: ""   # e.g. http://localstack.default.svc.cluster.local:4566
+  dynamodbTableName: "prima-tech-challenge-users"
+  s3BucketName: "prima-tech-challenge"
+  s3PublicBaseUrl: ""
+  logLevel: "INFO"
+
+# Secret AWS credentials, used only when NOT relying on IRSA (e.g. local
+# testing against LocalStack/minikube). In a real EKS/IRSA setup, leave
+# these empty — the ServiceAccount's IAM role handles auth and no static
+# keys ever touch the cluster.
+awsCredentials:
+  create: false
+  accessKeyId: ""
+  secretAccessKey: ""
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+topologySpreadConstraints:
+  enabled: true
+  maxSkew: 1

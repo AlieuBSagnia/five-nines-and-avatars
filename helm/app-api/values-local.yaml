@@ -1,0 +1,27 @@
+# Example overrides for local testing on minikube against LocalStack:
+#   helm install prima-api ./helm/prima-api -f ./helm/prima-api/values-local.yaml
+#
+# Assumes LocalStack is reachable from the cluster (e.g. run with
+# `localstack start` and expose via minikube's host-gateway, or run
+# LocalStack itself inside the cluster — see README).
+
+image:
+  repository: prima-tech-challenge/api
+  tag: "local"
+  pullPolicy: Never  # use the image already built into minikube's docker daemon
+
+autoscaling:
+  enabled: false
+replicaCount: 1
+
+config:
+  awsEndpointUrl: "http://host.minikube.internal:4566"
+  s3PublicBaseUrl: "http://host.minikube.internal:4566/prima-tech-challenge"
+
+awsCredentials:
+  create: true
+  accessKeyId: "test"
+  secretAccessKey: "test"
+
+serviceAccount:
+  eksRoleArn: ""  # not used locally; static creds above are used instead

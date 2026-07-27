@@ -1,0 +1,12 @@
+API has been deployed.
+
+Check rollout status:
+  kubectl rollout status deployment/{{ include "prima-api.fullname" . }} -n {{ .Release.Namespace }}
+
+Port-forward to test locally:
+  kubectl port-forward svc/{{ include "prima-api.fullname" . }} 8000:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+  curl http://localhost:8000/healthz
+
+{{- if .Values.ingress.enabled }}
+Ingress host: {{ .Values.ingress.host }}
+{{- end }}
