@@ -64,7 +64,7 @@ def get_users():
 async def create_user(
     name: str = Form(..., min_length=1, max_length=100),
     email: str = Form(...),
-    avatar: Annotated[UploadFile | None, File(description="Avatar image to upload")],
+    avatar: Annotated[UploadFile | None, File(description="Avatar image to upload")] = None,
 ):
     """Create a new user, uploading the provided image as their avatar."""
     if avatar is None:
