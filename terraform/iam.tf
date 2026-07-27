@@ -105,9 +105,9 @@ resource "aws_iam_role_policy_attachment" "app_irsa_attach" {
 
 data "aws_iam_policy_document" "app_dev_group_mfa" {
   statement {
-    sid    = "RequireMFAForGroup"
-    effect = "Deny"
-    actions = ["*"]
+    sid       = "RequireMFAForGroup"
+    effect    = "Deny"
+    actions   = ["*"]
     resources = ["*"]
 
     condition {

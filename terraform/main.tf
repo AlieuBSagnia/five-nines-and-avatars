@@ -124,7 +124,7 @@ resource "aws_s3_bucket_policy" "access_logs" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid = "AWSLogDeliveryWrite"
+        Sid    = "AWSLogDeliveryWrite"
         Effect = "Allow"
         Principal = {
           Service = "logging.s3.amazonaws.com"
