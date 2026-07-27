@@ -94,6 +94,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "avatars" {
     id     = "expire-old-noncurrent-versions"
     status = "Enabled"
 
+    filter {
+      prefix = ""
+    }
+
     noncurrent_version_expiration {
       noncurrent_days = 90
     }
