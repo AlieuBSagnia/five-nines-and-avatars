@@ -15,8 +15,8 @@ terraform {
 provider "aws" {
   region = var.aws_region
 
-  access_key                 = var.localstack_endpoint != "" ? "test" : null
-  secret_key                 = var.localstack_endpoint != "" ? "test" : null
+  access_key                  = var.localstack_endpoint != "" ? "test" : null
+  secret_key                  = var.localstack_endpoint != "" ? "test" : null
   skip_credentials_validation = var.localstack_endpoint != ""
   skip_metadata_api_check     = var.localstack_endpoint != ""
   skip_requesting_account_id  = var.localstack_endpoint != ""
