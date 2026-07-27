@@ -14,7 +14,6 @@ data "aws_iam_policy_document" "app_permissions" {
     ]
     resources = [
       aws_dynamodb_table.users.arn,
-      "${aws_dynamodb_table.users.arn}/index/*",
     ]
   }
 
@@ -25,6 +24,7 @@ data "aws_iam_policy_document" "app_permissions" {
       "s3:PutObject",
       "s3:GetObject",
     ]
+    # tfsec:ignore:aws-iam-no-policy-wildcards -- Object-level S3 access requires a key pattern and is scoped to the avatars prefix only.
     resources = [
       "${aws_s3_bucket.avatars.arn}/avatars/*",
     ]
@@ -107,9 +107,21 @@ resource "aws_iam_user" "app_dev_user" {
   tags = local.common_tags
 }
 
-resource "aws_iam_user_policy_attachment" "app_dev_user_attach" {
-  user       = aws_iam_user.app_dev_user.name
+resource "aws_iam_group" "app_dev_group" {
+  name = "prima-tech-challenge-dev-group"
+}
+
+resource "aws_iam_group_policy_attachment" "app_dev_group_attach" {
+  group      = aws_iam_group.app_dev_group.name
   policy_arn = aws_iam_policy.app_permissions.arn
+}
+
+resource "aws_iam_user_group_membership" "app_dev_user_groups" {
+  user = aws_iam_user.app_dev_user.name
+
+  groups = [
+    aws_iam_group.app_dev_group.name,
+  ]
 }
 
 resource "aws_iam_access_key" "app_dev_user_key" {

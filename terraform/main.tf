@@ -6,6 +6,18 @@ locals {
   }
 }
 
+resource "aws_kms_key" "main" {
+  description             = "KMS key for DynamoDB and S3 encryption"
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
+  tags                    = local.common_tags
+}
+
+resource "aws_kms_alias" "main" {
+  name          = "alias/prima-tech-challenge"
+  target_key_id = aws_kms_key.main.key_id
+}
+
 # ---------------------------------------------------------------------------
 # DynamoDB — stores user records. "email" is the natural business key
 # (unique per user), avoiding a synthetic UUID nobody asked for.
@@ -27,7 +39,8 @@ resource "aws_dynamodb_table" "users" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
+    kms_key_arn = aws_kms_key.main.arn
   }
 
   tags = local.common_tags
@@ -55,7 +68,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "avatars" {
   bucket = aws_s3_bucket.avatars.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      kms_master_key_id = aws_kms_key.main.arn
+      sse_algorithm     = "aws:kms"
     }
   }
 }
@@ -64,27 +78,40 @@ resource "aws_s3_bucket_public_access_block" "avatars" {
   bucket = aws_s3_bucket.avatars.id
 
   block_public_acls       = true
-  block_public_policy     = false # we set a scoped read-only policy below
+  block_public_policy     = true
   ignore_public_acls      = true
-  restrict_public_buckets = false
+  restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_policy" "avatars_public_read" {
-  bucket     = aws_s3_bucket.avatars.id
-  depends_on = [aws_s3_bucket_public_access_block.avatars]
+resource "aws_s3_bucket" "access_logs" {
+  bucket = "${var.s3_bucket_name}-access-logs"
+  tags   = local.common_tags
+}
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "PublicReadAvatars"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.avatars.arn}/avatars/*"
-      }
-    ]
-  })
+resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.main.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_logging" "avatars" {
+  bucket = aws_s3_bucket.avatars.id
+
+  target_bucket = aws_s3_bucket.access_logs.id
+  target_prefix = "avatars/"
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "avatars" {
