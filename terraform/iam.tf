@@ -103,6 +103,33 @@ resource "aws_iam_role_policy_attachment" "app_irsa_attach" {
   policy_arn = aws_iam_policy.app_permissions.arn
 }
 
+data "aws_iam_policy_document" "app_dev_group_mfa" {
+  statement {
+    sid    = "RequireMFAForGroup"
+    effect = "Deny"
+    actions = ["*"]
+    resources = ["*"]
+
+    condition {
+      test     = "Bool"
+      variable = "aws:MultiFactorAuthPresent"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_iam_policy" "app_dev_group_mfa" {
+  name        = "prima-tech-challenge-dev-group-mfa-policy"
+  description = "Require MFA for users in the dev group"
+  policy      = data.aws_iam_policy_document.app_dev_group_mfa.json
+  tags        = local.common_tags
+}
+
+resource "aws_iam_group_policy_attachment" "app_dev_group_mfa_attach" {
+  group      = aws_iam_group.app_dev_group.name
+  policy_arn = aws_iam_policy.app_dev_group_mfa.arn
+}
+
 # For local/dev testing without EKS (e.g. LocalStack or minikube with static
 # credentials), a plain IAM user + access key is provisioned instead so the
 # Helm chart always has *something* it can authenticate with in Task 4/local
