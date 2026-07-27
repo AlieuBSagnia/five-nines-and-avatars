@@ -85,6 +85,7 @@ resource "aws_s3_bucket_public_access_block" "avatars" {
   restrict_public_buckets = true
 }
 
+# tfsec:ignore:aws-s3-enable-bucket-logging -- access_logs is a dedicated S3 log destination and intentionally does not send its own access logs.
 resource "aws_s3_bucket" "access_logs" {
   bucket = "${var.s3_bucket_name}-access-logs"
   tags   = local.common_tags
