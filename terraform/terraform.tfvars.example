@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and adjust as needed.
+
+aws_region          = "us-east-1"
+environment         = "dev"
+dynamodb_table_name = "prima-tech-challenge-users"
+s3_bucket_name      = "prima-tech-challenge"
+
+# Point at LocalStack (default). Set to "" to target real AWS instead.
+localstack_endpoint = "http://localhost:4566"
+
+# Only fill these in once you have a real EKS cluster with OIDC enabled.
+# eks_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"
+# eks_oidc_provider_url = "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"

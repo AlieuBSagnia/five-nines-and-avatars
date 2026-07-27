@@ -1,0 +1,117 @@
+# ---------------------------------------------------------------------------
+# Least-privilege IAM policy: only the specific DynamoDB table + S3 prefix
+# actions the app actually performs. No wildcard resources, no admin-y verbs.
+# ---------------------------------------------------------------------------
+data "aws_iam_policy_document" "app_permissions" {
+  statement {
+    sid    = "DynamoDBUserTableAccess"
+    effect = "Allow"
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:GetItem",
+      "dynamodb:Scan",
+      "dynamodb:Query",
+    ]
+    resources = [
+      aws_dynamodb_table.users.arn,
+      "${aws_dynamodb_table.users.arn}/index/*",
+    ]
+  }
+
+  statement {
+    sid    = "S3AvatarObjectAccess"
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.avatars.arn}/avatars/*",
+    ]
+  }
+
+  statement {
+    sid    = "S3BucketLocation"
+    effect = "Allow"
+    actions = [
+      "s3:GetBucketLocation",
+    ]
+    resources = [
+      aws_s3_bucket.avatars.arn,
+    ]
+  }
+}
+
+resource "aws_iam_policy" "app_permissions" {
+  name        = "prima-tech-challenge-app-policy"
+  description = "Least-privilege access to the users table and avatars prefix"
+  policy      = data.aws_iam_policy_document.app_permissions.json
+  tags        = local.common_tags
+}
+
+# ---------------------------------------------------------------------------
+# IRSA (IAM Roles for Service Accounts): lets the Kubernetes ServiceAccount
+# used by the Helm chart assume this role directly via the EKS cluster's
+# OIDC provider — no long-lived AWS keys stored in the cluster at all.
+#
+# This block only creates the trust relationship if an EKS OIDC provider ARN
+# is supplied (it's intentionally optional: per the challenge instructions we
+# are not standing up a real EKS cluster to test against, but the code is
+# complete and ready to point at one).
+# ---------------------------------------------------------------------------
+data "aws_iam_policy_document" "irsa_trust" {
+  count = var.eks_oidc_provider_arn != "" ? 1 : 0
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.eks_oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.eks_oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:${var.k8s_namespace}:${var.k8s_service_account_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.eks_oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "app_irsa_role" {
+  count              = var.eks_oidc_provider_arn != "" ? 1 : 0
+  name               = "prima-tech-challenge-irsa-role"
+  assume_role_policy = data.aws_iam_policy_document.irsa_trust[0].json
+  tags               = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "app_irsa_attach" {
+  count      = var.eks_oidc_provider_arn != "" ? 1 : 0
+  role       = aws_iam_role.app_irsa_role[0].name
+  policy_arn = aws_iam_policy.app_permissions.arn
+}
+
+# For local/dev testing without EKS (e.g. LocalStack or minikube with static
+# credentials), a plain IAM user + access key is provisioned instead so the
+# Helm chart always has *something* it can authenticate with in Task 4/local
+# testing, without requiring a full EKS OIDC setup.
+resource "aws_iam_user" "app_dev_user" {
+  name = "prima-tech-challenge-dev-user"
+  tags = local.common_tags
+}
+
+resource "aws_iam_user_policy_attachment" "app_dev_user_attach" {
+  user       = aws_iam_user.app_dev_user.name
+  policy_arn = aws_iam_policy.app_permissions.arn
+}
+
+resource "aws_iam_access_key" "app_dev_user_key" {
+  user = aws_iam_user.app_dev_user.name
+}
